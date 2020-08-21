@@ -11,6 +11,12 @@ import (
 
 // TODO: All functions in this package are not yet tested.
 
+// MaxHintCount is the maximal number of hints a game of hanabi contains.
+const MaxHintCount = 8
+
+// MaxMisplayCount is the maximal number of misplays before a game is considered lost
+const MaxMisplayCount = 3
+
 // GameState represents the state of a Hanabi Game.
 // This state is represented openly, i.e. every single card can be seen.
 // This state is not goroutine safe, and excepts that only one goroutine accesses the game at any point.
@@ -34,6 +40,10 @@ type GameState struct {
 	// We use a pointer so that we can modify the player.
 	Players []*Player
 
+	// MovesLeft indicates how many turns are left. 
+	// If MovesLeft <= -1 implies that there are infinitly many moves left. 
+	MovesLeft int
+
 	// Stated returns if the game has already been started
 	Started bool
 	// CurrentPlayer is the player who has to make a move next
@@ -48,6 +58,22 @@ type Player struct {
 	// Hand is the Hand of the Player
 	Hand []Card
 }
+
+// Applicable checks if a hint is applicable to this player. 
+// A hint is applicable to this player if it matches at least one card
+func (p *Player) Applicable(hint Hint) bool {
+	// In order for a hint to be applicable, it must be legal
+	// Furthermore, the player must not be nil. 
+	if !hint.Legal(state.Mode) || p == nil {
+		return false
+	}
+	for _, card := range player.Hand {
+		if hint.Matches(card, state.Mode) {
+			return true
+		}
+	}
+	return false
+} 
 
 // MoveKind represents the kind of moves a player can make.
 type MoveKind string
@@ -125,17 +151,17 @@ var ErrInvalidPlayerCount = errors.New("GameState: There must be between 2 and 5
 // data structures.
 // The seed is used to shuffle the stack, and thus determines all the randomness in the game.
 // If seed is 0, a random seed is picked.
-func (state *GameState) Start(seed int64) error {
+func (state *GameState) /home/twiesing/Projects/github.com/tkw1536/hanabiStart(seed int64) error {
 
 	// This function has to initialize the game, i.e:
 
+	// - set MovesLeft to the right number
 	// - set Hints to the right number
 	// - set Misplays to the right number
 	// - initialize the color and discard piles.
 	// - create and shuffle the stack
 	// - distribute cards to all the players
 	// - determine the first player to play
-
 	// - setup Stack to contain all the cards
 
 	if state.Started {
@@ -149,6 +175,8 @@ func (state *GameState) Start(seed int64) error {
 	// setup hints and misplays
 	state.Hints = 8
 	state.Misplays = 0
+
+	state.MovesLeft = -1
 
 	// setup the color piles
 	state.ColorPiles = make(map[CardColor]CardNumber)
@@ -207,4 +235,86 @@ func (state *GameState) Start(seed int64) error {
 	state.CurrentPlayer = 0
 
 	return nil
+}
+
+// Player returns the current player
+func (state *GameState) Player() *Player {
+	return state.Players[state.CurrentPlayer]
+}
+
+// GetPlayer returns a player by UUID
+func (state *GameState) GetPlayer(uuid uuid.UUID) *Player {
+	for _, p := range state.Players {
+		if p.ID == uuid {
+			return p
+		}
+	}
+	return nil
+}
+
+// Finished returns if a game is finished
+func (state *GameState) Finished() bool {
+
+	// a started game can not be finished
+	if (!state.Started) {
+		return false
+	}
+
+	// maximal number of misplays reached => failure
+	if state.Misplays == MaxMisplayCount {
+		return true
+	}
+
+	// if there are no moves left the game has finished
+	if state.MovesLeft == 0 {
+		return true
+	}
+
+	// if all piles are at #5, the game is finished
+	for _, number := range state.ColorPiles {
+		if number != NumberFive {
+			return false
+		}
+	}
+	return true
+}
+
+
+// Legal checks if the provided move is Legal in the current game state
+// Assumes that the game has been started and is not yet finished. 
+// See .Started and .Finished()
+func (state *GameState) Legal(move Move) bool {
+	player := state.Player()
+	switch move.Kind {
+	case MovePlay:
+		// a player can play if the index is in the range of the hand
+		return 0 <= move.Index < len(player.Hand)
+	case MoveDiscard:
+		// a player can discard if:
+		// - the index is in range of the hand
+		// - the hints are not full
+		return state.Hints < MaxHintCount && (0 <= move.Index < len(player.Hand))
+	case MoveHint:
+		// a player can hint if:
+		// - there is at least one hint left
+		// - the player that is being hinted exists and is not the player itself
+		// - there is at least one hint
+		return state.Hints > 0 && state.GetPlayer(move.ID).Applicable(move.Hint) && hinted.ID !== player.ID
+	}
+	return false
+}
+
+const errMoveIllegal = errors.New("Move is illegal")
+
+// Apply applies a move
+// If a move is not legal returns an error. 
+func (state *GameState) ApplyMove(move Move) error {
+	if (!state.Legal(move)) {
+		return errMoveIllegal
+	}
+
+	switch move.Kind {
+	case MovePlay:
+		
+	}
 }

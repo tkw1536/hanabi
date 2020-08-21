@@ -107,8 +107,6 @@ func (h Hint) IsColorHint() bool {
 // Matches checks if a hint matches a card in this GameMode.
 // Assumes that h.Legal(mode) and c.Legal() are true.
 func (h Hint) Matches(c Card, mode GameMode) bool {
-	// TODO: This function is not yet tested.
-
 	// - number hints match all cards of that number
 	// - in non-Rainbow + non-DarkRainbow color hints match all cards of that color
 	// - in Rainbow + non-DarkRainbow, color hints match the color and rainbow cards
